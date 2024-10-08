@@ -80,5 +80,5 @@ from datetime import date
 # Start the crew's task execution
 def crew_kickoff(user_message):
     today = date.today()
-    result = crew.kickoff(inputs={"topic": f"I have already submitted my applications for EAE in NYP. What do i need to do next? Today's date is {today}"})
+    result = crew.kickoff(inputs={"topic": f"{user_message} Today's date is {today}"})
     return result
