@@ -21,10 +21,14 @@ client = OpenAI(api_key=OPENAI_KEY)
 # Set the base URL of a website, e.g., "https://example.com/", so that the tool can search for sub-pages on that website
 
 from crewai_tools import WebsiteSearchTool
-tool_admission_websearch = WebsiteSearchTool("https://www.moe.gov.sg/post-secondary/admissions",
-                                             temperature=0)
-tool_ecg_websearch = WebsiteSearchTool("https://www.moe.gov.sg/coursefinder",
-                                             temperature=0)
+tool_admission_websearch = WebsiteSearchTool("https://www.moe.gov.sg/post-secondary/admissions")
+tool_ecg_websearch = WebsiteSearchTool("https://www.moe.gov.sg/coursefinder")
+tool_np_courses_websearch = WebsiteSearchTool("https://www.np.edu.sg/schools-courses/full-time-courses")
+tool_sp_courses_websearch = WebsiteSearchTool("https://www.sp.edu.sg/sp/education")
+tool_tp_courses_websearch = WebsiteSearchTool("https://www.tp.edu.sg/schools-and-courses/students/all-diploma-courses.html")
+tool_nyp_courses_websearch = WebsiteSearchTool("https://www.nyp.edu.sg/student/study/find-course")
+tool_rp_courses_websearch = WebsiteSearchTool("https://www.rp.edu.sg/schools-courses/courses/full-time-diplomas")
+tool_ite_courses_websearch = WebsiteSearchTool("https://www.ite.edu.sg/courses/course-finder")
 
 
 # Agents
@@ -79,7 +83,8 @@ agent_ecg = Agent(
 
 	verbose=True, # to allow the agent to print out the steps it is taking
 
-    tools=[tool_ecg_websearch],
+    tools=[tool_np_courses_websearch, tool_sp_courses_websearch, tool_tp_courses_websearch, 
+           tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch],
 )
 
 # Tasks
@@ -90,10 +95,11 @@ task_craft_response = Task(
     2. Delegate the appropriate prompts to the most suitable agents to work on.
     3. Craft your response based on the output produced by the agents who have been delegated work only.
     4. Consolidate, analyse and recompile the output from the other agents into a responsed that is \
-        logical, coherent, meaningful and targetted to the user's query. 
-    5. Craft your response using prose that is succinct and easy to understand, \
+        logical, coherent, meaningful and targetted to the user's query.
+    5. Do not include options that the user is ineligible for. 
+    7. Craft your response using prose that is succinct and easy to understand, \
         suitable for Post-Secondary School students, typically aged 16 to 17 years old.
-    6. Provide links to websites what will be useful to the user in achieving the intended objective(s). 
+    8. Where applicable, include links to webpages that helps the user achieve the intended objective(s). 
     """,
 
     #description="""\ 
@@ -116,7 +122,8 @@ task_admission = Task(
     description="""\
     1. Understand the user's component prompt(s) in the "Admissions" category.
     2. Research admission matters using the tool provided. 
-    3. Respond factually and meaningfully to the user. Where possible, respond only with information that the user is eligible for. 
+    3. Respond factually and meaningfully to the user. \
+        Where possible, respond only with information of the admission exercises that the user is eligible for. 
     4. The timeframe is important. Where applicable, advise on the timeframe of eligible admission exercises.
     5. Include webpage urls as reference where applicable.  
     """,
@@ -172,8 +179,8 @@ from datetime import date
 def crew_kickoff(dict_component_queries):
     today = date.today()
     result = crew.kickoff(inputs={
-        "topic_admission": f"{dict_component_queries.get('Admission')}",
-        "topic_ecg":f"{dict_component_queries.get('ECG')}",
+        # "topic_admission": f"{dict_component_queries.get('Admission')}",
+        # "topic_ecg":f"{dict_component_queries.get('ECG')}",
         "topics":f"{json.dumps(dict_component_queries)}. Today's date is {today}"
         })
     return result

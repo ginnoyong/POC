@@ -96,7 +96,9 @@ def query_handler(user_message):
     dict_categorized_query = json.loads(categorized_query)
     # print(list(dict_categorized_query.keys()))
     # print(list(dict_categorized_query.values()))
+    
+    print(json.dumps(dict_categorized_query))
     helpful_response = let_the_agents_handle_it(dict_categorized_query)
-    print(dict_categorized_query)
+    
     return helpful_response
 
