@@ -1,7 +1,7 @@
 # Common imports
 import os
 from dotenv import load_dotenv
-#import json
+import json
 from openai import OpenAI
 import streamlit as st
 # import lolviz
@@ -31,32 +31,32 @@ tool_ecg_websearch = WebsiteSearchTool("https://www.moe.gov.sg/coursefinder",
 agent_friendly_advisor = Agent(
     role="Post-Secondary Education Advisor",
 
-    goal="Consolidate the responses provided by the other agents, \
-        and rewrite a coherent, helpful and succinct final response to the user's query.",
+    goal="""Work with othe expert agents to craft a targetted and helpful response to user's query on Post-Secondary School Education.\
+        The query has been analysed and broken down into categorised prompts in the format of {{'category':'prompts'}}.\
+        User's query: {topics}""" ,
 
     backstory=f"""You are a superb communicator whose field of expertise is in Singapore's Post-Secondary School Education. 
-    Your job is to consolidate the information in the responses provided by the other agents, \
-        and communicate information that is coherent and only relevant to the user's query. 
-        You will also craft your resonse in such a way that is easy for a Post Secondary School student to understand. 
+        Your job is to work with other agents in your crew to provide factual, targetted and useful information/advice \
+        to the user's query. 
+        Craft your resonse in such a way that is succinct and easy for a Post Secondary School student to understand. 
         The vast majority of Post Secondary School students are between 16 and 17 years old. 
     """,
 
-    allow_delegation=False, # we will explain more about this later
+    allow_delegation=True, # we will explain more about this later
 
 	verbose=True, # to allow the agent to print out the steps it is taking
 )
 
 agent_admission = Agent(
-    role="Admission Advisor",
+    role="Admission Expert",
 
-    goal="Provide clear and targetted advice on post secondary school education admission criteria and procedure \
-        specific to the user's query: {topic_admission}.",
+    goal="Provide clear, factual and targetted information/advice on post secondary school education admission criteria and procedure \
+        specific to the user's prompt in the 'Admissions' category.",
 
-    backstory="""You are an expert in Singapore's Minstry of Education Post Secondary School registration and admission matters.
-    You have the capability to read and understand all admission matters on post secondary school education and the various admission exercises, \
-        such as admission criteria, procedures and timelines. 
-    You are also capable of analyze the user's query and provide a factual and useful response. 
-    Your work will be the basis for the Post-Secondary Education Advisor to craft the final response to the user's query.
+    backstory="""You are an expert in Singapore's Minstry of Education Post Secondary School admission matters.
+    You will analyse user's prompt(s) regarding admission matters, research about it on the Singapore MOE Post Secondary School Admissions website,\
+        and provide factual and targetted information/advice to the Post-Secondary Education Advisor. 
+    Your work will be the basis for the Post-Secondary Education Advisor to craft the final response to the user.
     """,
 
     allow_delegation=False, # we will explain more about this later
@@ -65,15 +65,14 @@ agent_admission = Agent(
 )
 
 agent_ecg = Agent(
-    role="Education and Career Advisor",
+    role="Education and Career Guidance Expert",
 
-    goal="Perform Values, Interests, Personality, Skills (V.I.P.S.) analysis of the user based on the information \
-        provided by the user in his/her query: {topic_ecg}.\
-        Shortlist 5 Post-Secondary School Education courses/schools that are most suitable to the user based on the V.I.P.S analysis.",
+    goal="Perform Values, Interests, Personality, Skills (VIPS) analysis of the user based on the user's prompt in the 'ECG' category of the query. \
+        Identify Post-Secondary School Education courses/schools that will suit to the user based on the VIPS analysis.",
 
-    backstory="""You are an expert in identifying Post-Secondary School Education courses/schools that best-match the V.I.P.S. analysis of students.\
-          Singapore's Minstry of Education Post Secondary School registration and admission matters.
-          Your work will be the basis for the Post-Secondary Education Advisor to craft the final response to the user's query.
+    backstory="""You are an Education and Career Guidance expert. 
+            Your skills are in identifying Post-Secondary courses/schools suitable to the user based on his/her VIPS. 
+            Your work will be the basis for the Post-Secondary Education Advisor to craft the final response to the user's query.
           """,
 
     allow_delegation=False, # we will explain more about this later
@@ -86,15 +85,26 @@ agent_ecg = Agent(
 # Tasks
 task_craft_response = Task(
     description="""\
-    1. Analyse the work produced by the other agents 
-    2. Consolidate and compile the work provided by the other agents in a logical, coherent and meaningful way. 
-    3. From the output of the previous step, craft your response using ONLY information that is applicable to the user based on his/her query. 
-    4. Craft your response using this information in a manner that is succinct and easy to follow, suitable for Post-Secondary School students.
+    1. Understand the user's query, which has been broken down into component prompts and categorised in the format {{'category':'prompts'}}.\
+        User's query: {topics}
+    2. Delegate the appropriate prompts to the most suitable agents to work on.
+    3. Craft your response based on the output produced by the agents who have been delegated work only.
+    4. Consolidate, analyse and recompile the output from the other agents into a responsed that is \
+        logical, coherent, meaningful and targetted to the user's query. 
+    5. Craft your response using prose that is succinct and easy to understand, \
+        suitable for Post-Secondary School students, typically aged 16 to 17 years old.
+    6. Provide links to websites what will be useful to the user in achieving the intended objective(s). 
     """,
 
+    #description="""\ 
+    #1. Analyse the work produced by the other agents 
+    #2. Consolidate and compile the work provided by the other agents in a logical, coherent and meaningful way. 
+    #3. From the output of the previous step, craft your response using ONLY information that is applicable to the user based on his/her query. 
+    #4. Craft your response using this information in a manner that is succinct and easy to follow, suitable for Post-Secondary School students.
+    #""",
+
     expected_output="""\
-    Factual, useful and coherent information/advice only relevant to the user's query on matters about Post-Secondary Education \
-        crafted in a way that is succinct and easy to understand.
+    Very helpful response to the user's query on matters about Post-Secondary Education. \
     """,
 
     agent=agent_friendly_advisor,
@@ -104,17 +114,15 @@ task_craft_response = Task(
 
 task_admission = Task(
     description="""\
-    1. Understand all admission matters on Post Secondary School Education.
-    2. Analyse information provided by the user in his/her query: {topic_admission}.
-    3. Respond factually and meaningfully to the user. 
-    4. If the user is asking about eligibility, respond with only information of admission exercises and options that the user is eligible for.\
-    Ask for more information if the user did not provide enough information for you to answer the query.  
-    5. Check the timeline(s). Highlight if and when the eligible admission exercise(s) is/are open. 
-    6. Include the url link(s) to the webpage(s) where the information in your response are sourced from.
+    1. Understand the user's component prompt(s) in the "Admissions" category.
+    2. Research admission matters using the tool provided. 
+    3. Respond factually and meaningfully to the user. Where possible, respond only with information that the user is eligible for. 
+    4. The timeframe is important. Where applicable, advise on the timeframe of eligible admission exercises.
+    5. Include webpage urls as reference where applicable.  
     """,
 
     expected_output="""\
-    Factual, useful and succinct information/advice on matters about Post-Secondary Education admission exercises in response to the user's query.
+    Factual and targetted information/advice on matters about Post-Secondary Education admission exercises in response to the user's query.
     """,
 
     agent=agent_admission,
@@ -125,16 +133,25 @@ task_admission = Task(
 # Tasks
 task_ecg = Task(
     description="""\
-    1. Perform Values, Interests, Personality, Skills (V.I.P.S.) analysis of the user based on the information \
-        provided by the user in his/her query: {topic_ecg}.
-    2. Shortlist not more than 5 Post-Secondary Education only courses/schools suitable for the user based on the analysis.
-    3. Do NOT include University courses.
-    3. Rank the shortlisted courses/schools with the most suitable one first and the least suitable last. 
-    4. Include the url link(s) to the webpage(s) of the identified courses/schools in your list.
+    1. Understand the user's component prompt(s) in the "ECG" category.
+    2. If possible, perform a Values, Interests, Personality, Skills (VIPS) analysis of the user based on the information \
+        provided in the prompt. 
+    3. Shortlist not more than 5 Post-Secondary Education only courses/schools suitable for the user based on the VIPS analysis.
+    4. Do NOT include University courses.  Respond factually and meaningfully to the user. Where possible, respond only with information that the user is eligible for. 
+    5. Include webpage urls as reference where applicable.  
     """,
+    
+    #description="""\
+    #1. Perform Values, Interests, Personality, Skills (V.I.P.S.) analysis of the user based on the information \
+    #    provided by the user in his/her query: {topic_ecg}.
+    #2. Shortlist not more than 5 Post-Secondary Education only courses/schools suitable for the user based on the analysis.
+    #3. Do NOT include University courses.
+    #3. Rank the shortlisted courses/schools with the most suitable one first and the least suitable last. 
+    #4. Include the url link(s) to the webpage(s) of the identified courses/schools in your list.
+    #""",
 
     expected_output="""\
-    A list 5 Post-Secondary Education only courses/schools suitable for the user based on the V.I.P.S. analysis. \
+    Shortlisted Post-Secondary Education only courses/schools that suits the user based on the VIPS analysis. \
         """,
 
     agent=agent_ecg,
@@ -143,8 +160,8 @@ task_ecg = Task(
 
 # Crew
 crew = Crew(
-    agents=[agent_admission, agent_ecg, agent_friendly_advisor],
-    tasks=[],
+    agents=[agent_friendly_advisor, agent_admission, agent_ecg],
+    tasks=[task_craft_response],
     verbose=True
 )
 
@@ -154,12 +171,15 @@ from datetime import date
 # Start the crew's task execution
 def crew_kickoff(dict_component_queries):
     today = date.today()
-    result = crew.kickoff(inputs={"topic_admission": f"{dict_component_queries.get('Admission')}. Today's date is {today}",
-                                  "topic_ecg":f"{dict_component_queries.get('ECG')}"})
+    result = crew.kickoff(inputs={
+        "topic_admission": f"{dict_component_queries.get('Admission')}",
+        "topic_ecg":f"{dict_component_queries.get('ECG')}",
+        "topics":f"{json.dumps(dict_component_queries)}. Today's date is {today}"
+        })
     return result
 
 def let_the_agents_handle_it(dict_component_queries):
-    if "ECG" in dict_component_queries.keys():
+    """if "ECG" in dict_component_queries.keys():
         crew.tasks.append(task_ecg)
     if "Admission" in dict_component_queries.keys():
         # crew.agents.append(agent_admission)
@@ -168,5 +188,8 @@ def let_the_agents_handle_it(dict_component_queries):
         response = ""
     else:
         crew.tasks.append(task_craft_response)
-        response = crew_kickoff(dict_component_queries).raw
+        response = crew_kickoff(dict_component_queries).raw"""
+    
+    # crew.tasks = []
+    response = crew_kickoff(dict_component_queries)
     return response
