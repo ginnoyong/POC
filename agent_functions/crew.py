@@ -52,8 +52,8 @@ agent_course_advisor = Agent(
         with his/her own aggregate score.
     About Aggregate Scores: 
         There are different types of aggregate score, such as ELMAB3, ELR2B2, etc.   
-        You understand that a lower aggregate score is actually better than a higher one.
-        Meaning that a student will have a lower chance of success in getting accepted if his/her aggregate score is higher, \
+        You understand that a lower aggregate score is actually better than a higher score.
+        Meaning that a student will have poorer chance of success in getting accepted in a course if his/her aggregate score is higher, \
         especially if it is higher than the bigger value of a course's reference Aggregate Score Range. 
     """,
 
@@ -61,6 +61,7 @@ agent_course_advisor = Agent(
     #      tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch],
 
     tools=[search_tool,search_tool_moe_coursefinder],
+
 )
 
 agent_friendly_advisor = Agent(
@@ -166,14 +167,18 @@ task_course_advisor = Task(
     Look at all the school / institute websites for your answer.   
     List the actual courses.
     Be specific and factual in your response. 
-    Select only courses where the user has a good chance of being accepted.
+    Select only courses where the user has a good or better chance of being accepted.
     If the user is not eligible for any course, just state so.  
     If the information provided in the user's query is insufficient for you to identify specific courses, \
     suggest how the user may improve his/her query.
-    If the user's score is higher than the higher bound of the course's Aggregate Score Range, \
-    indicate that the user may still apply for that course though his/her chances of getting accepted may be low. 
+    If the user's score is higher than the bigger value of the course's Aggregate Score Range, \
+    indicate that the user may still apply for that course though his/her chances of getting accepted may be low.
+    For example: for an Aggregate Score Range of 6 to 13, a user will have very good chance of getting accepted if his/her score is less than 6, \
+    a good chance of getting accepted if his/her score is between 6 and 13, and poor chance if more than 13.
+    In general, the higher the score, the lower the chance of success.  
     Always indicate the type of Aggregate Score, such as ELR2B2-A, ELR2B2-B, etc, or the qualifications and subject passes required where possible.
-    Include the url link to the exact course webpages of the courses identified in your response. 
+    Include the url link to the exact course webpages of the courses identified in your response.
+    Output in JSON format.  
     """,
     
     expected_output="""\
@@ -181,6 +186,7 @@ task_course_advisor = Task(
         """,
 
     agent=agent_course_advisor,
+
 )
 
 task_course_info = Task(
@@ -297,7 +303,7 @@ crew = Crew(
     #agents=[agent_admission, agent_ecg, agent_course_finder, agent_course_info],
     agents=[agent_course_advisor, agent_admission],
     tasks=[],
-    verbose=True
+    verbose=True,
 )
 
 # Get current date
@@ -341,4 +347,4 @@ def let_the_agents_handle_it(user_query, query_type):
 
     
     response = crew_kickoff(user_query)
-    return response
+    return response.raw

@@ -108,7 +108,7 @@ def query_handler(user_message, query_type):
 
     if query_type in dict_categorized_query.keys():
         helpful_response = let_the_agents_handle_it(dict_categorized_query.get(query_type), query_type)
-        return helpful_response.raw
+        return helpful_response
     else:
         return "Unable to do this."
 
