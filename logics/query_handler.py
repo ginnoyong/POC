@@ -9,17 +9,20 @@ def query_categorizer(incoming_message):
         Your task is to categorize user's query into one or more of the following categories:
         'Admission': If the user is asking about Post-Secondary School Education admission matters, \
             such as procedure, timeline, eligibility criteria, minimum entry requirement (MER) scores, etc.
-        'CourseSchoolFinder': If the user is asking about specific schools or courses, such as \
-            information about the course or school, required net aggregate scores for last year's intake, \
-            type of net aggregate score calculation (Aggregate Type), if the user's aggregate score meets the criteria, etc.
+        'AboutCourse': If the user is asking for information about a course or school.
+        'CourseFinder': If the user is asking for a list of schools or courses, that is either \
+            a) suitable for the user based on personal information provided in the query, such as: \
+                Values, Interests, Personality, Skills (VIPS), Strengths, Weaknesses, etc.  
+            b) or the user is eligible for based on information provided in the query about his/her \
+                qualifications and/or ELR2B2 aggregate scores.
         'ECG': If the user is asking for guidance in selecting the right Post-Secondary School Education \
-            school or course based on the user's interests, passion, school subjects that he/she is good at, etc.
+            school or course based on the user's interests, passion, school subjects that he/she is good at, desired career, etc.
         'Other': If the user's query doesn't fall into any of the above categories.
         The user's query is delimited by <incoming-message>.
         Step 1: Analyze if the user's query is made up of one or more component queries.
         Step 2: Split the user's query into its component queries. Rewrite each component query into a clear and concise standalone query.
         Step 3: Categorize each component query into one or more of the above categories.
-        Step 4: Output unique categories only. Combine component queries of the same category.  
+        Step 4: Output unique categories only. Combine component queries of the same category. Retain necessary context in each category.
         Step 5: Output the categories in a JSON object only with the following format: \
             {{category 1:combined component queries of category 1, category 2:combined component queries of category 1, ..}}
         """
@@ -28,7 +31,7 @@ def query_categorizer(incoming_message):
         {'role':'user', 'content': f"<incoming-message>{incoming_message}</incoming-message>"},
     ]
 
-    response = get_completion_by_messages(messages)
+    response = get_completion_by_messages(messages=messages, json_output=True)
     return response
 
 def improve_query(user_message):
@@ -89,16 +92,23 @@ def malicious_check(user_message):
     return get_completion_by_messages(messages)
 
 
-def query_handler(user_message):
+def query_handler(user_message, query_type):
     #improved_user_query = improve_query(user_message)
     #helpful_response = crew_kickoff(improved_user_query)
     categorized_query = query_categorizer(user_message)
+
+    print(f"""#####\n{categorized_query}\n#####""")
+
     dict_categorized_query = json.loads(categorized_query)
     # print(list(dict_categorized_query.keys()))
     # print(list(dict_categorized_query.values()))
     
-    print(json.dumps(dict_categorized_query))
-    helpful_response = let_the_agents_handle_it(dict_categorized_query)
-    
-    return helpful_response
+    #print(json.dumps(dict_categorized_query))
+    #helpful_response = let_the_agents_handle_it(dict_categorized_query)
+
+    if query_type in dict_categorized_query.keys():
+        helpful_response = let_the_agents_handle_it(dict_categorized_query.get(query_type), query_type)
+        return helpful_response.raw
+    else:
+        return "Unable to do this."
 
