@@ -7,14 +7,16 @@ import streamlit as st
 # import lolviz
 
 # Import the key CrewAI classes
-from crewai import Agent, Task, Crew
+from crewai import Agent, Task, Crew, LLM
 
-if load_dotenv('.env'):
-    OPENAI_KEY = os.getenv('OPENAI_API_KEY')
-else:
-    OPENAI_KEY = st.secrets['OPENAI_API_KEY']
+#if load_dotenv('.env'):
+#    OPENAI_KEY = os.getenv('OPENAI_API_KEY')
+#else:
+#    OPENAI_KEY = st.secrets['OPENAI_API_KEY']
 
-client = OpenAI(api_key=OPENAI_KEY)
+# client = OpenAI(api_key=OPENAI_KEY)
+
+llm=LLM(model=os.getenv('OPENAI_MODEL_NAME'), temperature=0.1)
 
 from pathlib import Path
 print(Path(__file__).resolve().parent)
@@ -28,17 +30,17 @@ print(Path(__file__).resolve().parent)
 from crewai_tools import WebsiteSearchTool
 tool_admission_websearch = WebsiteSearchTool("https://www.moe.gov.sg/post-secondary/admissions")
 tool_moe_coursefinder_websearch = WebsiteSearchTool("https://www.moe.gov.sg/coursefinder")
-#tool_np_courses_websearch = WebsiteSearchTool("https://www.np.edu.sg/schools-courses/full-time-courses")
-#tool_sp_courses_websearch = WebsiteSearchTool("https://www.sp.edu.sg/sp/education")
-#tool_tp_courses_websearch = WebsiteSearchTool("https://www.tp.edu.sg/schools-and-courses/students/all-diploma-courses.html")
-#tool_nyp_courses_websearch = WebsiteSearchTool("https://www.nyp.edu.sg/student/study/find-course")
-#tool_rp_courses_websearch = WebsiteSearchTool("https://www.rp.edu.sg/schools-courses/courses/full-time-diplomas")
-#tool_ite_courses_websearch = WebsiteSearchTool("https://www.ite.edu.sg/courses/course-finder")
+tool_np_courses_websearch = WebsiteSearchTool("https://www.np.edu.sg/schools-courses")
+tool_sp_courses_websearch = WebsiteSearchTool("https://www.sp.edu.sg/sp/education")
+tool_tp_courses_websearch = WebsiteSearchTool("https://www.tp.edu.sg/schools-and-courses/students.html")
+tool_nyp_courses_websearch = WebsiteSearchTool("https://www.nyp.edu.sg/student/study/find-course")
+tool_rp_courses_websearch = WebsiteSearchTool("https://www.rp.edu.sg/schools-courses/courses")
+tool_ite_courses_websearch = WebsiteSearchTool("https://www.ite.edu.sg/courses/course-finder")
 #tool_job_roles_websearch = WebsiteSearchTool("https://www.myskillsfuture.gov.sg/content/student/en/secondary/assessment/matching-job-roles.html")
 
 from crewai_tools import SerperDevTool
 search_tool = SerperDevTool(country='sg')
-#search_tool_moe_coursefinder = SerperDevTool(search_url='https://www.moe.gov.sg/coursefinder')
+search_tool_moe_coursefinder = SerperDevTool(search_url='https://www.moe.gov.sg/coursefinder')
 search_tool_np = SerperDevTool(search_url="https://www.np.edu.sg/schools-courses")
 search_tool_sp = SerperDevTool(search_url="https://www.sp.edu.sg/sp/education")
 search_tool_tp = SerperDevTool(search_url="https://www.tp.edu.sg/landing/students.html")
@@ -68,10 +70,16 @@ agent_course_finder = Agent(
         In summary, the lower the student's score, the better is his/her chances of getting into a course. 
     """,
 
-    #tools=[tool_np_courses_websearch, tool_sp_courses_websearch, tool_tp_courses_websearch, 
-    #      tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch],
 
-    tools=[search_tool],
+    #tools=[tool_np_courses_websearch, tool_sp_courses_websearch, tool_tp_courses_websearch, 
+    #     tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch,tool_moe_coursefinder_websearch],
+
+    tools=[search_tool_np, search_tool_sp, search_tool_tp, 
+         search_tool_nyp, search_tool_rp, search_tool_ite,search_tool_moe_coursefinder],
+
+    # tools=[search_tool],
+
+    llm=llm,
 
 )
 
@@ -88,6 +96,8 @@ agent_admission = Agent(
     allow_delegation=False, # we will explain more about this later
 
 	verbose=True, # to allow the agent to print out the steps it is taking
+
+    llm=llm,
 )
 
 agent_course_info = Agent(
@@ -106,6 +116,9 @@ agent_course_info = Agent(
 
     # tools=[tool_np_courses_websearch, tool_sp_courses_websearch, tool_tp_courses_websearch, 
     #       tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch],
+
+    llm=llm,
+
 )
 
 # Tasks
@@ -113,16 +126,16 @@ task_course_finder = Task(
     description="""\
     1. Provide factual answer to the user's prompt regarding looking for one or more course or school, delimited in <prompt_course_finder> tags. 
     2. <prompt_course_finder>{topic_course_finder}</prompt_course_finder>
-    3. Look across all Post-Secondary schools and institutes in Singapore to generate your answer. Do not include universities. 
+    3. Look across all the schools and institutes provided in your tools to generate your answer. Do not include universities.
     4. List the actual courses.
-    5. Be specific and factual in your response. 
-    6. Select only courses where the user has a good or better chance of being accepted.
-    7. If the user is not eligible for any course, just state so.  
-    8. If the information provided in the user's query is insufficient for you to identify specific courses, \
+    5. Do NOT hallucinate. Do NOT make up courses that do not exist. Just state so if there are no courses that answers the user's prompt.
+    6. Be specific and factual in your response. 
+    7. Select only courses where the user has a good or better chance of being accepted.
+    8. If the user is not eligible for any course, just state so.  
+    9. If the information provided in the user's query is insufficient for you to identify specific courses, \
     suggest how the user may improve his/her query.
-    9. Always indicate the type of Aggregate Score, such as ELR2B2-A, ELR2B2-B, etc, or the qualifications and subject passes required where possible.
-    10. Include the url link to the exact course webpages of the courses identified in your response.
-    11. If <prompt_course_finder> is 'None', just respond with a line break.
+    10. Always indicate the type of Aggregate Score, such as ELR2B2-A, ELR2B2-B, etc, or the qualifications and subject passes required where possible.
+    11. Include the url link to the exact course webpages of the courses identified in your response.
     """,
     
     expected_output="""\
@@ -131,7 +144,9 @@ task_course_finder = Task(
 
     agent=agent_course_finder,
 
-    tools=[tool_moe_coursefinder_websearch, search_tool_np, search_tool_sp, search_tool_tp, search_tool_nyp, search_tool_rp, search_tool_ite],
+    # tools=[search_tool, search_tool_moe_coursefinder],
+    #tools=[tool_moe_coursefinder_websearch, tool_np_courses_websearch, tool_sp_courses_websearch, 
+    #       tool_tp_courses_websearch, tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch],
 
 )
 
@@ -140,7 +155,8 @@ task_course_info = Task(
     1. Find out about the course(s) as indicated in the user's prompt delimited in <prompt_course_info> tags. 
     2. <prompt_course_info>:{topic_course_info}</prompt_course_info>
     3. Be specific and factual in your response, do NOT make up information. 
-    4. Include the url links to the exact webpages of the source of your information as reference. 
+    4. List the actual courses. Do NOT make up courses. 
+    4. Include the url links to the exact webpages of courses that form the source of your information. 
     """,
     
     expected_output="""\
@@ -152,7 +168,8 @@ task_course_info = Task(
     context=[task_course_finder],
 
     #tools=[tool_moe_coursefinder_websearch, search_tool],
-    tools=[tool_moe_coursefinder_websearch, search_tool_np, search_tool_sp, search_tool_tp, search_tool_nyp, search_tool_rp, search_tool_ite],
+    tools=[tool_moe_coursefinder_websearch, search_tool],
+    #tools=[tool_moe_coursefinder_websearch, search_tool_np, search_tool_sp, search_tool_tp, search_tool_nyp, search_tool_rp, search_tool_ite],
 )
 
 task_admission = Task(
