@@ -16,7 +16,7 @@ from crewai import Agent, Task, Crew, LLM
 
 # client = OpenAI(api_key=OPENAI_KEY)
 
-llm=LLM(model=os.getenv('OPENAI_MODEL_NAME'), temperature=0.1)
+llm=LLM(model=os.getenv('OPENAI_MODEL_NAME'), temperature=0.0)
 
 from pathlib import Path
 print(Path(__file__).resolve().parent)
@@ -39,14 +39,7 @@ tool_ite_courses_websearch = WebsiteSearchTool("https://www.ite.edu.sg/courses/c
 #tool_job_roles_websearch = WebsiteSearchTool("https://www.myskillsfuture.gov.sg/content/student/en/secondary/assessment/matching-job-roles.html")
 
 from crewai_tools import SerperDevTool
-search_tool = SerperDevTool(country='sg')
-search_tool_moe_coursefinder = SerperDevTool(search_url='https://www.moe.gov.sg/coursefinder')
-search_tool_np = SerperDevTool(search_url="https://www.np.edu.sg/schools-courses")
-search_tool_sp = SerperDevTool(search_url="https://www.sp.edu.sg/sp/education")
-search_tool_tp = SerperDevTool(search_url="https://www.tp.edu.sg/landing/students.html")
-search_tool_nyp = SerperDevTool(search_url="https://www.nyp.edu.sg/student/study/find-course")
-search_tool_rp = SerperDevTool(search_url="https://www.rp.edu.sg/schools-courses/courses")
-search_tool_ite = SerperDevTool(search_url="https://www.ite.edu.sg/courses/course-finder")
+search_tool = SerperDevTool(country="sg")
 
 # Agents
 agent_course_finder = Agent(
@@ -59,28 +52,26 @@ agent_course_finder = Agent(
     This score range provides a reference of how likely a student will be successful in getting accepted into the course \
         with his/her own aggregate score.
     About Aggregate Scores: 
-        There are different types of aggregate score, such as ELMAB3, ELR2B2, etc.   
-        You understand that a lower aggregate score is actually better than a higher score.
-        Meaning that a student will have poorer chance of success in getting accepted in a course if his/her aggregate score is higher, \
-        especially if it is higher than the bigger value of a course's reference Aggregate Score Range.
-        For example, a course has a reference score range of 10 to 15. \
-        A student with a score of <10 will have very good chance of getting into this course, \
-        while a student with a score of between 10 and 15 will have a good chance of getting into the same course. \
-        A student with a score of >15 will have low chance. 
-        In summary, the lower the student's score, the better is his/her chances of getting into a course. 
+        There are different types of aggregate score, such as ELMAB3, ELR2B2, etc.
+        A user has better chances of getting into a course if his/her aggregate score is lower than the course's aggregate score range.    
     """,
 
 
-    #tools=[tool_np_courses_websearch, tool_sp_courses_websearch, tool_tp_courses_websearch, 
-    #     tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch,tool_moe_coursefinder_websearch],
+    # tools=[tool_np_courses_websearch, tool_sp_courses_websearch, tool_tp_courses_websearch, 
+    #     tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch, tool_moe_coursefinder_websearch],
 
-    tools=[search_tool_np, search_tool_sp, search_tool_tp, 
-         search_tool_nyp, search_tool_rp, search_tool_ite,search_tool_moe_coursefinder],
+    # tools=[search_tool_np, search_tool_sp, search_tool_tp, 
+    #     search_tool_nyp, search_tool_rp, search_tool_ite,search_tool_moe_coursefinder, search_tool],
 
-    # tools=[search_tool],
+    # tools=[tool_moe_coursefinder_websearch,search_tool],
 
     llm=llm,
 
+    max_retry_limit=1,
+
+    max_iter=20,
+
+    allow_delegation=False,
 )
 
 agent_admission = Agent(
@@ -96,6 +87,8 @@ agent_admission = Agent(
     allow_delegation=False, # we will explain more about this later
 
 	verbose=True, # to allow the agent to print out the steps it is taking
+
+    max_iter=10,
 
     llm=llm,
 )
@@ -119,6 +112,8 @@ agent_course_info = Agent(
 
     llm=llm,
 
+    max_iter=15,
+
 )
 
 # Tasks
@@ -127,15 +122,19 @@ task_course_finder = Task(
     1. Provide factual answer to the user's prompt regarding looking for one or more course or school, delimited in <prompt_course_finder> tags. 
     2. <prompt_course_finder>{topic_course_finder}</prompt_course_finder>
     3. Look across all the schools and institutes provided in your tools to generate your answer. Do not include universities.
-    4. List the actual courses.
+    4. List the actual courses. List all the courses that fit the user query but cap at 10 courses.
     5. Do NOT hallucinate. Do NOT make up courses that do not exist. Just state so if there are no courses that answers the user's prompt.
-    6. Be specific and factual in your response. 
-    7. Select only courses where the user has a good or better chance of being accepted.
+    6. Be specific and factual in your response.
+    7. If the query is concern about aggregate scores (also known as cut-off points), do this step by step: \
+        a) identify the two numbers in the course's Aggregate Score Range. \
+        b) if the user's aggregate score is lower than the two numbers in the course's Aggregate Score Range, he/she has good chances of being accepted. \
+        c) if the user's aggregate score is lower than only 1 of the two numbers in the course's Aggregate Score Range, he/she has fair chances of being accepted. \
+        d) if the user's aggregate score is lower than none of the two numbers in the course's Aggregate Score Range, he/she has poor chances of being accepted. \
     8. If the user is not eligible for any course, just state so.  
     9. If the information provided in the user's query is insufficient for you to identify specific courses, \
     suggest how the user may improve his/her query.
     10. Always indicate the type of Aggregate Score, such as ELR2B2-A, ELR2B2-B, etc, or the qualifications and subject passes required where possible.
-    11. Include the url link to the exact course webpages of the courses identified in your response.
+    11. Always provide the url link to the exact webpage of the course. 
     """,
     
     expected_output="""\
@@ -144,8 +143,8 @@ task_course_finder = Task(
 
     agent=agent_course_finder,
 
-    # tools=[search_tool, search_tool_moe_coursefinder],
-    #tools=[tool_moe_coursefinder_websearch, tool_np_courses_websearch, tool_sp_courses_websearch, 
+    tools=[search_tool],
+    # tools=[tool_moe_coursefinder_websearch, tool_np_courses_websearch, tool_sp_courses_websearch, 
     #       tool_tp_courses_websearch, tool_nyp_courses_websearch, tool_rp_courses_websearch, tool_ite_courses_websearch],
 
 )
@@ -156,7 +155,7 @@ task_course_info = Task(
     2. <prompt_course_info>:{topic_course_info}</prompt_course_info>
     3. Be specific and factual in your response, do NOT make up information. 
     4. List the actual courses. Do NOT make up courses. 
-    4. Include the url links to the exact webpages of courses that form the source of your information. 
+    4. Always provide the url link to the exact webpage of the course. 
     """,
     
     expected_output="""\
@@ -167,8 +166,8 @@ task_course_info = Task(
 
     context=[task_course_finder],
 
-    #tools=[tool_moe_coursefinder_websearch, search_tool],
-    tools=[tool_moe_coursefinder_websearch, search_tool],
+    tools=[search_tool],
+    # tools=[tool_moe_coursefinder_websearch, search_tool],
     #tools=[tool_moe_coursefinder_websearch, search_tool_np, search_tool_sp, search_tool_tp, search_tool_nyp, search_tool_rp, search_tool_ite],
 )
 
@@ -176,7 +175,7 @@ task_admission = Task(
     description="""\
     1. Provide targetted answer to the user's prompt on Post Secondary School Education admission, delimited in <prompt_admission> tags.
     2. <prompt_admission>:{topic_admission}</prompt_admission>
-    3. Be specific and factual in your response. Do NOT make up answers.
+    3. Be specific and factual in your response. Do NOT make up answers. Just say so if you are unsure.
     4. For each Post-Secondary School Education admission exercise, indicate if the user is eligible for it \
         if you have enough information to determine. 
     5. Include the url links to the exact webpages of the source of your information as reference. 
@@ -191,7 +190,8 @@ task_admission = Task(
 
     tools=[tool_admission_websearch],
 
-    context=[task_course_finder, task_course_info]
+    context=[task_course_finder, task_course_info],
+
 )
 
 # Crew
