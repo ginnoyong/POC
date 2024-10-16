@@ -2,10 +2,13 @@ from helper_functions.llm import get_completion_by_messages
 from agent_functions.crew import let_the_agents_handle_it
 import json
 
+#        'ECG': If the user is asking for guidance in selecting the right Post-Secondary School Education \
+#            school or course based on the user's interests, passion, school subjects that he/she is good at, desired career, etc.
+
 def query_categorizer(incoming_message):
     system_message = f"""
-        You are an AI bot tasked with pre-processing messages sent to a chatbot designed to assist user's 
-        queries regarding Post-Secondary School Education in Singapore. 
+        You are tasked with pre-processing the user's query before sending it to a chatbot designed to answer questions \
+            regarding Post-Secondary School Education in Singapore. 
         Your task is to categorize user's query into one or more of the following categories:
         'Admission': If the user is asking about Post-Secondary School Education admission matters, \
             such as procedure, timeline, eligibility criteria, minimum entry requirement (MER) scores, etc.
@@ -15,14 +18,14 @@ def query_categorizer(incoming_message):
                 Values, Interests, Personality, Skills (VIPS), Strengths, Weaknesses, etc.  
             b) or the user is eligible for based on information provided in the query about his/her \
                 qualifications and/or ELR2B2 aggregate scores.
-        'ECG': If the user is asking for guidance in selecting the right Post-Secondary School Education \
-            school or course based on the user's interests, passion, school subjects that he/she is good at, desired career, etc.
         'Other': If the user's query doesn't fall into any of the above categories.
         The user's query is delimited by <incoming-message>.
-        Step 1: Analyze if the user's query is made up of one or more component queries.
-        Step 2: Split the user's query into its component queries. Rewrite each component query into a clear and concise standalone query.
-        Step 3: Categorize each component query into one or more of the above categories.
-        Step 4: Output unique categories only. Combine component queries of the same category. Retain necessary context in each category.
+        Step 1: Analyze if the user's query is made up of one or more component prompts.
+        Step 2: Split the user's query into its component prompts. Rewrite each component prompt into a clear and concise standalone query.
+        Step 3: Categorize each component prompt into one or more of the above categories.
+        Step 4: Output unique categories only. Combine component prompts of the same category. \
+            Retain important context from the original query in the component prompts of each category, \
+            because the chatbot will process each component prompt separately.
         Step 5: Output the categories in a JSON object only with the following format: \
             {{category 1:combined component queries of category 1, category 2:combined component queries of category 1, ..}}
         """
@@ -92,23 +95,24 @@ def malicious_check(user_message):
     return get_completion_by_messages(messages)
 
 
-def query_handler(user_message, query_type):
+def query_handler(user_message):
     #improved_user_query = improve_query(user_message)
     #helpful_response = crew_kickoff(improved_user_query)
     categorized_query = query_categorizer(user_message)
 
-    print(f"""#####\n{categorized_query}\n#####""")
+    print(f"""\n\n#####\n{categorized_query}\n#####\n\n""")
 
     dict_categorized_query = json.loads(categorized_query)
     # print(list(dict_categorized_query.keys()))
     # print(list(dict_categorized_query.values()))
     
     #print(json.dumps(dict_categorized_query))
-    #helpful_response = let_the_agents_handle_it(dict_categorized_query)
+    helpful_response = let_the_agents_handle_it(dict_categorized_query)
+    return helpful_response
 
-    if query_type in dict_categorized_query.keys():
-        helpful_response = let_the_agents_handle_it(dict_categorized_query.get(query_type), query_type)
-        return helpful_response
-    else:
-        return "Unable to do this."
+    #if query_type in dict_categorized_query.keys():
+    #    helpful_response = let_the_agents_handle_it(dict_categorized_query.get(query_type), query_type)
+    #    return helpful_response
+    #else:
+    #    return "Unable to do this."
 

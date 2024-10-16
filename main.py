@@ -24,7 +24,7 @@ if form.form_submit_button("Submit"):
     
     print(f"User Input is {user_prompt}")
 
-    response = query_handler(user_prompt, "CourseFinder")
+    response = query_handler(user_prompt)
     #response.raw
     #print(len(response.tasks_output))
 
