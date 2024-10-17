@@ -28,10 +28,10 @@ print(Path(__file__).resolve().parent)
 # Set the base URL of a website, e.g., "https://example.com/", so that the tool can search for sub-pages on that website
 
 from crewai_tools import WebsiteSearchTool
-tool_admission_websearch = WebsiteSearchTool("https://www.moe.gov.sg/post-secondary/admissions")
+tool_admission_websearch = WebsiteSearchTool(website="https://www.moe.gov.sg/post-secondary/admissions")
 tool_moe_coursefinder_websearch = WebsiteSearchTool("https://www.moe.gov.sg/coursefinder")
 tool_np_courses_websearch = WebsiteSearchTool("https://www.np.edu.sg/schools-courses")
-tool_sp_courses_websearch = WebsiteSearchTool("https://www.sp.edu.sg/sp/education")
+tool_sp_courses_websearch = WebsiteSearchTool(website="https://www.sp.edu.sg/sp/education/full-time-diploma-courses/course-intake-and-jae-elr2b2")
 tool_tp_courses_websearch = WebsiteSearchTool("https://www.tp.edu.sg/schools-and-courses/students.html")
 tool_nyp_courses_websearch = WebsiteSearchTool("https://www.nyp.edu.sg/student/study/find-course")
 tool_rp_courses_websearch = WebsiteSearchTool("https://www.rp.edu.sg/schools-courses/courses")
@@ -40,6 +40,9 @@ tool_ite_courses_websearch = WebsiteSearchTool("https://www.ite.edu.sg/courses/c
 
 from crewai_tools import SerperDevTool
 search_tool = SerperDevTool(country="sg")
+
+from crewai_tools import PDFSearchTool
+tool_pdf_admission_guide = PDFSearchTool(pdf='content\A Guide to Post-Secondary Admissions Exercises.pdf')
 
 # Agents
 agent_course_finder = Agent(
@@ -121,15 +124,16 @@ task_course_finder = Task(
     description="""\
     1. Provide factual answer to the user's prompt regarding looking for one or more course or school, delimited in <prompt_course_finder> tags. 
     2. <prompt_course_finder>{topic_course_finder}</prompt_course_finder>
-    3. Look across all the schools and institutes provided in your tools to generate your answer. Do not include universities.
-    4. List the actual courses. List all the courses that fit the user query but cap at 10 courses.
-    5. Do NOT hallucinate. Do NOT make up courses that do not exist. Just state so if there are no courses that answers the user's prompt.
-    6. Be specific and factual in your response.
-    7. If the query is concern about aggregate scores (also known as cut-off points), do this step by step: \
-        a) identify the two numbers in the course's Aggregate Score Range. \
-        b) if the user's aggregate score is lower than the two numbers in the course's Aggregate Score Range, he/she has good chances of being accepted. \
-        c) if the user's aggregate score is lower than only 1 of the two numbers in the course's Aggregate Score Range, he/she has fair chances of being accepted. \
-        d) if the user's aggregate score is lower than none of the two numbers in the course's Aggregate Score Range, he/she has poor chances of being accepted. \
+    3. List the exact course(s). List all the courses that fit the user query but cap at 10 courses.
+    4. Do NOT hallucinate. Do NOT make up courses that do not exist. Just state so if there are no courses that answers the user's prompt.
+    5. Be specific and factual in your response.
+    6. How to determine the chances of the user getting accepted into the listed course(s) by using the aggregate scores? Let's do this step by step: \
+        a) Identify the two numbers in the course's Aggregate Score Range. \
+        b) Let A be the smaller number in the course's Aggregate Score Range; Let B be the bigger number in the course's Aggregate Score Range.
+        c) If the user's aggregate score is lower than A, he/she has good chances of being accepted. \
+        d) If the user's aggregate score is lower than B but bigger than A, he/she has fair chances of being accepted. \
+        e) If the user's aggregate score is higher than B, he/she has poor chances of being accepted. \
+        f) The lower the user's aggregate score -> the higher his/her chances are in getting into any course.  
     8. If the user is not eligible for any course, just state so.  
     9. If the information provided in the user's query is insufficient for you to identify specific courses, \
     suggest how the user may improve his/her query.
@@ -175,11 +179,13 @@ task_admission = Task(
     description="""\
     1. Provide targetted answer to the user's prompt on Post Secondary School Education admission, delimited in <prompt_admission> tags.
     2. <prompt_admission>:{topic_admission}</prompt_admission>
-    3. Be specific and factual in your response. Do NOT make up answers. Just say so if you are unsure.
-    4. For each Post-Secondary School Education admission exercise, indicate if the user is eligible for it \
-        if you have enough information to determine. 
-    5. Include the url links to the exact webpages of the source of your information as reference. 
-    6. Be mindful of the timeframe of each admission exercise and the date of the user's prompt when generating your answer. 
+    3a. Note that Polytechnic offers Diploma programmes, ITE offers Nitec and Higher Nitec programmes.
+    3b. Note that N-levels cert could be either N(A) or N(T). 
+    4. Be specific and factual in your response. Do NOT make up answers. Just say so if you are unsure.
+    5. Be concise. Do NOT include options or advices that the user is ineligible for. 
+    6. Do NOT provide options or advices that the user did not ask for. Just say so if nothing is available to the user. 
+    7. Include the url links to the exact webpages of the source of your information as reference. 
+    8. Be mindful of the timeframe of each admission exercise and the date of the user's prompt when generating your answer. 
     """,
 
     expected_output="""\
@@ -188,9 +194,10 @@ task_admission = Task(
 
     agent=agent_admission,
 
-    tools=[tool_admission_websearch],
+    # tools=[tool_pdf_admission_guide],
+    tools=[tool_admission_websearch, tool_pdf_admission_guide],
 
-    context=[task_course_finder, task_course_info],
+    #context=[task_course_finder, task_course_info],
 
 )
 
